@@ -1,0 +1,300 @@
+%% Reporte técnico — Predicción multiclase de deserción estudiantil con métodos de ensamble
+%% Plantilla IEEE Conference (IEEEtran). Compilar: pdflatex main && bibtex main && pdflatex main && pdflatex main
+%% Las cifras del texto provienen de tables/numbers.tex y de tables/*.tex, generados por scripts/make_tables.py
+\documentclass[conference]{IEEEtran}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-tabla,es-nodecimaldot]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{babel,arrows.meta,positioning,calc}
+\usepackage{cite}
+\usepackage{url}
+\usepackage{balance}
+\usepackage{microtype}
+\usepackage[hidelinks]{hyperref}
+
+% --- Datos del autor y del repositorio (editar aquí) ------------------------------------------------------------
+\newcommand{\correo}{\texttt{TU\_CORREO@uach.mx}}                      % <-- PENDIENTE: poner el correo real
+\newcommand{\repoURL}{https://github.com/JonahGGC/proyecto-final-ml}   % <-- PENDIENTE: confirmar la URL del repositorio
+
+% --- Cifras generadas por scripts/make_tables.py -----------------------------------------------------------------
+\input{tables/numbers.tex}
+
+% --- Atajos de notación ------------------------------------------------------------------------------------------
+\newcommand{\cD}{\emph{Dropout}}
+\newcommand{\cE}{\emph{Enrolled}}
+\newcommand{\cG}{\emph{Graduate}}
+\newcommand{\RL}{RL}
+\newcommand{\Fm}{F1 macro}
+\hyphenation{Gra-dient Hist-Gra-dient-Boost-ing strati-fied}
+
+\graphicspath{{figures/}}
+\hypersetup{pdftitle={Predicción multiclase de deserción estudiantil con métodos de ensamble},
+            pdfauthor={Jonahtan Gabriel González Cardoza}}
+
+\begin{document}
+
+\title{Predicción multiclase de deserción estudiantil con métodos de ensamble: comparación estadística frente a regresión logística y SVM}
+
+\author{\IEEEauthorblockN{Jonahtan Gabriel González Cardoza}
+\IEEEauthorblockA{Maestría en Ingeniería en Computación (MIC), matrícula 345491\\
+Universidad Autónoma de Chihuahua (UACh), Chihuahua, México\\
+Proyecto final del curso de Machine Learning (MIC1)\\
+Correo: \correo}}
+
+\maketitle
+
+\begin{abstract}
+La deserción universitaria es costosa para estudiantes e instituciones, y detectarla a tiempo permite intervenir. Este trabajo evalúa si los métodos de ensamble mejoran de forma comprobable a la regresión logística (RL) y a las máquinas de vectores de soporte (SVM) al clasificar a \Ntot{} estudiantes del conjunto UCI 697 en deserción, inscrito o graduado, con una misma partición estratificada 80/20. Se construyó un flujo sin fuga de información, con preprocesamiento ajustado dentro de cada fold, y se compararon versiones base y optimizadas de RL, SVM, Random Forest, Bagging, Pasting, AdaBoost, Gradient Boosting, HistGradientBoosting, EBM, Voting y Stacking con validación cruzada de 5 folds. Cada modelo se evaluó una sola vez en Test, con intervalos bootstrap y McNemar, y se hizo validación cruzada repetida 5$\times$5 con corrección de Nadeau y Bengio y de Holm. En validación, Voting (soft) obtuvo el mayor F1 macro (\cvFVS{} frente a \cvFLR{} de la RL), diferencia no significativa tras Holm; en Test, Random Forest obtuvo el mayor (\teFRF). En Test, \nMcnHolm{} modelos aciertan significativamente más estudiantes que la RL con regla de decisión, pero su AUC es indistinguible, la ventaja en F1 macro es pequeña y el orden de validación no predijo el de Test (Spearman \rhoCVTest). Los errores se concentran en la clase inscrito. Los ensambles aportan mejoras modestas y no concluyentes en el criterio principal, y comparar con la literatura exige cautela por las diferencias de protocolo.
+\end{abstract}
+
+\renewcommand{\IEEEkeywordsname}{Palabras clave}
+\begin{IEEEkeywords}
+deserción estudiantil; aprendizaje automático; métodos de ensamble; clasificación multiclase; validación estadística
+\end{IEEEkeywords}
+
+%=====================================================================================================================
+\section{Introducción}\label{sec:intro}
+La deserción en educación superior cuesta a todos los involucrados. Para el estudiante implica tiempo, dinero y oportunidades perdidas; para la institución, recursos y eficiencia terminal; para la sociedad, capital humano que no se forma. Su estudio tiene una larga tradición teórica, desde los modelos de integración académica y social \cite{tinto1975}, y una literatura socioeconómica extensa sobre sus determinantes \cite{aina2022}.
+
+Una respuesta computacional son los sistemas de alerta temprana: modelos entrenados con registros históricos que estiman, para cada estudiante, el riesgo de abandonar o de no terminar a tiempo, de modo que la institución pueda orientar tutorías y apoyos \cite{kemper2020,martins2023,carballo2025}. Los trabajos recientes sobre el conjunto de datos que usamos recurren sobre todo a ensambles de árboles (Sec.~\ref{sec:related}). Sin embargo, que un ensamble ``gane'' en una sola partición no basta: con \Nte{} estudiantes de prueba, diferencias de uno o dos puntos de F1 caben dentro del error de muestreo, y los protocolos varían de un estudio a otro (partición, remuestreo, selección de variables, métrica), de modo que las cifras publicadas rara vez son comparables entre sí.
+
+\textbf{Objetivo.} Evaluar, con un protocolo sin fuga de información y con inferencia estadística explícita, si los métodos de ensamble mejoran la clasificación multiclase (\cD, \cE, \cG) respecto de la regresión logística (RL) y de las SVM, que son los modelos de referencia de proyectos previos del mismo curso. De forma específica: (i) construir un flujo reproducible (partición única, \emph{Pipeline} y validación comunes) para comparar RL, SVM y diez familias de ensambles; (ii) medir el efecto de optimizar hiperparámetros, en validación y en Test; (iii) cuantificar la incertidumbre con intervalos bootstrap, validación cruzada repetida y pruebas pareadas; y (iv) situar los resultados frente a cinco trabajos que usan el mismo conjunto, sin afirmar superioridad donde las condiciones no son comparables.
+
+\textbf{Alcance.} El estudio es retrospectivo y de una sola institución. Usa información disponible al final del segundo semestre, incluido el rendimiento académico, por lo que \emph{no} es una predicción al momento de la inscripción. No evalúa intervenciones ni despliegue, y la validación temporal o externa queda fuera de alcance. El resto del documento sigue este orden: trabajos relacionados (Sec.~\ref{sec:related}), metodología (Sec.~\ref{sec:met}), resultados y discusión (Sec.~\ref{sec:res}) y conclusiones (Sec.~\ref{sec:conc}).
+
+%=====================================================================================================================
+\section{Trabajos relacionados}\label{sec:related}
+\textbf{Origen del conjunto.} Realinho et al.\ \cite{realinho2022} describen el conjunto de datos, construido en el Instituto Politécnico de Portalegre (Portugal) y publicado en el repositorio UCI \cite{realinho2021uci}. Martins et al.\ \cite{martins2023}, del mismo grupo, estudiaron con una versión previa (4,433 estudiantes) cuál es el mejor momento del primer año para predecir: construyeron tres conjuntos de datos (al inscribirse y al final de cada semestre), compararon cinco algoritmos con técnicas para el desbalance (como SVMSMOTE y Balanced Random Forest) y encontraron que los mejores modelos eran de tipo Random Forest y que el mejor momento es el final del primer semestre (F1 ponderado de 0.745, con remuestreo de 10 repeticiones 90/10).
+
+\textbf{Estudios con la versión actual (4,424 estudiantes).} Praptomo et al.\ \cite{praptomo2026} comparan RL, Random Forest y XGBoost con una partición 80/20 estratificada, búsqueda aleatoria con validación cruzada de 5 folds y SHAP; reportan un F1 macro de 0.701 para XGBoost y la mayor exactitud (0.772) para Random Forest. Nashier et al.\ \cite{nashier2026} usan la misma partición con siete modelos (RL, Random Forest, SVM, XGBoost, LightGBM, CatBoost y un apilamiento) y malla con validación cruzada; sus F1 macro en Test van de 0.690 a 0.718. Villar y de Andrade \cite{villar2024} comparan seis algoritmos con SMOTE y reportan métricas por clase, pero no la partición usada. Putra et al.\ \cite{putra2025} entrenan Random Forest y XGBoost tras seleccionar 25 variables por correlación y reportan exactitud (0.806 y 0.790), sin F1. Wijiyanto et al.\ \cite{wijiyanto2026} proponen un apilamiento con RL como metamodelo, SMOTE dentro de los folds de una validación de 7 folds y RFE, con exactitud de 0.844 y F1 de 0.725.
+
+\textbf{Contexto con otros datos.} Carballo-Mendívil et al.\ \cite{carballo2025} entrenan XGBoost con datos de preinscripción de cerca de 40,000 estudiantes de una universidad pública mexicana (2014--2024) y obtienen un AUC de 0.690 y un F1 de 0.695 para la clase de deserción. No es el mismo conjunto ni el mismo problema (binario, sin rendimiento académico), por lo que lo citamos solo como contraste: anticipar la predicción cuesta capacidad discriminativa.
+
+\textbf{Lo que distingue esta evaluación.} Frente a estos trabajos, aquí (i) todos los modelos comparten partición, preprocesamiento y folds, con el preprocesamiento ajustado dentro de cada fold; (ii) cada ensamble se compara con su propia versión base, para separar el efecto del algoritmo del de la optimización; (iii) las diferencias se someten a inferencia (bootstrap, McNemar y validación cruzada repetida con corrección por comparaciones múltiples); y (iv) se analiza explícitamente cuánto se pierde de validación a Test. No pretendemos superar las cifras de otros estudios: la Sec.~\ref{sec:sota} explica por qué no son comparables en general.
+
+%=====================================================================================================================
+\section{Metodología}\label{sec:met}
+
+\subsection{Conjunto de datos}
+Usamos \emph{Predict Students' Dropout and Academic Success} (UCI id 697) \cite{realinho2022,realinho2021uci}, creado para identificar de forma temprana a estudiantes en riesgo. Contiene \Ntot{} estudiantes de 17 licenciaturas del Instituto Politécnico de Portalegre y 36 variables predictoras (Tabla~\ref{tab:variables}): demográficas, socioeconómicas, de trayectoria al ingreso, rendimiento del primer y segundo semestres, y tres indicadores macroeconómicos. No hay valores faltantes ni registros duplicados.
+
+La variable objetivo es la situación del estudiante al terminar la duración normal de la carrera (tres años; cuatro en enfermería): \cG{} (graduado a tiempo), \cE{} (sigue inscrito) o \cD{} (abandonó). Las clases están desbalanceadas (Graduate \ntG{}, \ptG\,\%; Dropout \ntD{}, \ptD\,\%; Enrolled \ntE{}, \ptE\,\%), con una razón de 2.8 a 1 entre la mayor y la menor.
+
+\input{tables/tab_variables}
+
+\textbf{Limitaciones del conjunto.} (i) Es de una sola institución, por lo que no hay validación externa. (ii) Incluye el rendimiento del primer y segundo semestres, de modo que la predicción corresponde al final del segundo semestre y no a la inscripción. (iii) \cE{} no es un desenlace final sino un estado intermedio (``aún inscrito''), lo que la hace intrínsecamente ambigua. (iv) Los tres indicadores macroeconómicos solo toman 10 combinaciones distintas, es decir, identifican cohortes de ingreso, y no existe un orden temporal explícito. (v) Hay registros con información estructuralmente vacía: \nSinUC{} estudiantes de Train, todos del curso \cursoSinUC{}, no tienen unidades curriculares inscritas en ninguno de los dos semestres.
+
+\subsection{Análisis exploratorio y preprocesamiento}
+\textbf{Partición antes que todo.} Antes de cualquier análisis se separó el conjunto en Train (\Ntr{}) y Test (\Nte{}) de forma estratificada; el exploratorio se hizo solo sobre Train y Test se cargó únicamente en la evaluación final (Sec.~\ref{sec:disenio}).
+
+\textbf{Hallazgos del exploratorio (Train).} Las 36 variables se agrupan en \nNum{} numéricas, \nNom{} nominales (códigos sin orden) y \nBin{} binarias. El riesgo se concentra en el rendimiento académico y en la situación económica (Fig.~\ref{fig:eda}): entre los estudiantes con cero unidades curriculares (UC) aprobadas en el segundo semestre pero con UC inscritas (\nAprobCero{} casos), \tAprob\,\% son \cD{} y ninguno \cG{}; con la misma condición en el primer semestre, \tAprobU\,\% (\nAprobCeroU{} casos). Con la colegiatura no al corriente, \tNF\,\% abandona (\nNF{} casos), y entre deudores, \tDB\,\% (\nDB{}). En sentido contrario, \tBec\,\% de los becarios se gradúa y \tJov\,\% de quienes ingresan a los 19 años o menos; el grupo de 26 a 30 años abandona en \tMay\,\%. La tasa de \cD{} por licenciatura varía de \cursoMin\,\% a \cursoMax\,\% entre las \nCursosGr{} con al menos 100 estudiantes en Train. Los \nSinUC{} registros sin UC inscritas no se comportan como el resto: aunque no cursaron unidades, \gSinUC\,\% figura como \cG{} (y \tSinUC\,\% como \cD), lo que sugiere un hueco en el registro y no un patrón de comportamiento; se conservaron porque no hay un criterio para decidir cuáles son errores.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{fig_eda_clases.pdf}
+\caption{Composición de clases en Train según (a) la edad al inscribirse, (b) las UC aprobadas en el primer semestre y (c) las UC aprobadas en el segundo semestre (el último valor agrupa 10 o más). Cada barra suma 100\,\%; con cero UC aprobadas predomina la deserción.}
+\label{fig:eda}
+\end{figure*}
+
+\textbf{Valores atípicos.} La edad al inscribirse va de \edadMin{} a \edadMax{} años y \nOutEdad{} estudiantes (\pOutEdad\,\%) quedan fuera de los límites de la regla del rango intercuartílico. Se conservaron: son valores reales de un segmento con un comportamiento distinto (el de 26 a 30 años), y eliminarlos quitaría información sin que los modelos de árboles lo requieran; para RL y SVM el escalado acota su influencia.
+
+\textbf{Codificación y escalado.} Un \texttt{ColumnTransformer} aplica \texttt{StandardScaler} a las \nNum{} numéricas, \emph{one-hot} a las \nNom{} nominales y deja pasar las \nBin{} binarias. El \emph{one-hot} usa \texttt{min\_frequency}=0.01 (las categorías con menos de 1\,\% se agrupan) y \texttt{handle\_unknown=infrequent\_if\_exist}, de modo que las \nCatOrig{} categorías originales quedan en \nOH{} columnas y el total de entrada es de \nCols{} columnas. El código de la licenciatura no tiene orden (su correlación lineal con \cD{} es de \rCurso{}), por lo que se codifica \emph{one-hot}.
+
+\textbf{Correlaciones y selección de variables.} Hay \nCorrAlta{} pares de variables numéricas con $|r|>0.8$ de \nParesNum{} posibles, todos entre el primer y el segundo semestre (por ejemplo, UC aprobadas: $r=\rAprobSem$; inscritas: $r=\rInscSem$). No se eliminó ninguna variable: la penalización L1 de la RL, la regularización de las SVM y los árboles manejan la colinealidad, y seleccionar variables con el conjunto completo antes de partir es una fuente conocida de fuga \cite{kapoor2023}.
+
+\textbf{Desbalance.} No se usó remuestreo sintético. Se emplearon pesos de clase balanceados (\texttt{class\_weight}) en los modelos que los admiten, \Fm{} como métrica principal de selección y, para la RL, una regla de decisión sobre $P(\mathrm{Dropout})$ con umbral elegido sobre predicciones fuera de bolsa (OOF) de Train. Con una razón de 2.8 a 1, el desbalance es moderado y los pesos evitan inventar estudiantes sintéticos \cite{chawla2002}.
+
+\textbf{Control de fuga.} Todo ajuste (escalado, codificación, selección de hiperparámetros, umbral) ocurre solo con datos de entrenamiento: el preprocesamiento vive dentro de un \texttt{Pipeline} que se reajusta en cada fold, y las búsquedas se hacen con validación cruzada sobre Train. El único análisis posterior que usa Test para algo distinto de la evaluación es la importancia por permutación (Sec.~\ref{sec:grafico}), explícitamente \emph{a posteriori} y no usada para seleccionar nada.
+
+\subsection{Modelos}
+Se parte de la RL y las SVM de proyectos previos del curso y se agregan ensambles, siguiendo las descripciones de \cite{geron2019} e implementaciones de scikit-learn \cite{pedregosa2011}.
+
+\textbf{Modelos de referencia.} \emph{Dummy} predice la clase mayoritaria y marca el piso (\Fm{} de \teFDUM{}). La \textbf{RL} multinomial con penalización L1 \cite{tibshirani1996} y solver \texttt{saga} \cite{defazio2014} es interpretable y es el modelo base del curso. Las \textbf{SVM} (lineal, polinomial y RBF) \cite{cortes1995} buscan el margen máximo y, con núcleos, fronteras no lineales; las probabilidades de la SVM se obtienen con escalamiento de Platt \cite{platt1999}.
+
+\textbf{Ensambles de árboles.} Un árbol de decisión es el estimador base: de bajo sesgo pero de alta varianza. \textbf{Bagging} \cite{breiman1996} y \textbf{Pasting} \cite{breiman1999} promedian árboles entrenados con submuestras (con y sin reemplazo, respectivamente) para reducir la varianza; \textbf{Random Forest} \cite{breiman2001} agrega un sorteo de variables en cada división. \textbf{AdaBoost} \cite{freund1997} y \textbf{Gradient Boosting} \cite{friedman2001} entrenan árboles de forma secuencial para reducir el sesgo; \textbf{HistGradientBoosting} es la variante con histogramas de scikit-learn, inspirada en LightGBM \cite{ke2017}, mucho más rápida.
+
+\textbf{Ensambles híbridos e interpretables.} \textbf{Voting} combina RL, SVM, Random Forest, Gradient Boosting y HistGradientBoosting por voto mayoritario (\emph{hard}) o por promedio de probabilidades (\emph{soft}). \textbf{Stacking} \cite{wolpert1992} entrena una RL balanceada sobre las predicciones fuera de fold de esos cinco modelos (las versiones base de ambos usan solo RL, SVM y Random Forest). La \textbf{EBM} (\emph{Explainable Boosting Machine}) \cite{lou2013,nori2019} es un modelo aditivo con interacciones por pares, entrenado por boosting cíclico: se incluye como alternativa interpretable de caja de cristal frente a los ensambles opacos.
+
+\subsection{Diseño experimental}\label{sec:disenio}
+\textbf{Partición y validación.} Una partición estratificada 80/20 con \texttt{random\_state}=42 da Train de \Ntr{} (\ntrD{}, \ntrE{} y \ntrG{} estudiantes de \cD, \cE{} y \cG) y Test de \Nte{} (\nteD{}, \nteE{} y \nteG{}). En Train se usa validación cruzada estratificada de 5 folds (\texttt{shuffle}, semilla 42), la misma para todos los modelos. La Fig.~\ref{fig:flujo} resume el flujo y separa tres usos de los datos: \emph{entrenamiento} (ajuste de cada modelo dentro de un fold), \emph{selección} (comparación de configuraciones con la validación cruzada) y \emph{evaluación final} (Test, una sola vez por modelo y sin reajustar nada).
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[font=\scriptsize, >=Stealth,
+  caja/.style={draw=black!60, rounded corners=1.5pt, minimum height=9mm, align=center, text width=3.0cm, inner sep=2pt, fill=white},
+  tr/.style={caja, fill=blue!7},
+  te/.style={caja, fill=orange!14, draw=orange!70!black},
+  fl/.style={->, thin, black!70}]
+\node[tr] (ds) {Conjunto UCI 697\\ \Ntot{} estudiantes, 36 variables};
+\node[tr, right=5mm of ds] (sp) {Partición estratificada 80/20\\ \texttt{random\_state}=42};
+\node[tr, right=5mm of sp] (eda) {Train (\Ntr{}): análisis exploratorio\\ (solo Train)};
+\node[tr, right=5mm of eda] (pipe) {\texttt{Pipeline}: escalado, \emph{one-hot} y modelo, reajustado en cada fold};
+\node[tr, below=9mm of ds] (cv) {CV estratificada de 5 folds: modelos base};
+\node[tr, right=5mm of cv] (bus) {Búsqueda de hiperparámetros (\Fm{}), mismos folds};
+\node[tr, right=5mm of bus] (rep) {CV repetida 5$\times$5, Nadeau--Bengio y Holm};
+\node[tr, right=5mm of rep] (fit) {Reajuste del modelo elegido con todo Train};
+\node[te, below=9mm of fit] (test) {Test (\Nte{}): una evaluación por modelo; IC bootstrap, McNemar};
+\draw[fl] (ds) -- (sp);
+\draw[fl] (sp) -- (eda);
+\draw[fl] (eda) -- (pipe);
+\draw[fl] (pipe.south) -- ++(0,-4.5mm) -| (cv.north);
+\draw[fl] (cv) -- (bus);
+\draw[fl] (bus) -- (rep);
+\draw[fl] (rep) -- (fit);
+\draw[fl] (fit) -- (test);
+\draw[fl, dashed, orange!70!black] (sp.north) -- ++(0,3.5mm) -| ($(test.east)+(4mm,0)$) -- (test.east);
+\node[font=\scriptsize\itshape, orange!60!black, anchor=south west] at ($(sp.north)+(2mm,3.5mm)$) {Test se separa y no se toca hasta el final};
+\end{tikzpicture}
+\caption{Flujo experimental. En azul, los pasos que solo usan Train (entrenamiento y selección); en naranja, el único paso que usa Test. El preprocesamiento se ajusta dentro de cada fold para evitar fuga de información.}
+\label{fig:flujo}
+\end{figure*}
+
+\textbf{Configuración base y optimización.} Cada modelo se evalúa primero con una configuración inicial razonable (Tabla~\ref{tab:base}; para RL y SVM, los parámetros por defecto de scikit-learn). Las versiones base de Voting y Stacking reutilizan la RL y la SVM RBF ya optimizadas en proyectos previos (con el mismo Train), por lo que no son ingenuas. Después se optimiza con \texttt{RandomizedSearchCV} o \texttt{GridSearchCV} \cite{bergstra2012}, con \Fm{} como puntaje, los mismos 5 folds y reajuste con la mejor combinación. La Tabla~\ref{tab:espacios} lista lo que se evaluó en cada búsqueda y la Tabla~\ref{tab:opt}, lo que se seleccionó. Como el mismo puntaje sirve para seleccionar y estimar, el de la mejor combinación es optimista \cite{cawley2010}; lo acotamos comparándolo con la validación cruzada repetida (Sec.~\ref{sec:grafico}).
+
+\input{tables/tab_espacios}
+
+\textbf{Métricas.} La métrica principal es el F1 macro, el promedio sin ponderar de los F1 de las tres clases (ec.~\ref{eq:f1}), porque da el mismo peso a la clase minoritaria \cE:
+\begin{equation}
+F1_{\mathrm{macro}}=\frac13\sum_{c\in\{\mathrm{D},\mathrm{E},\mathrm{G}\}}\frac{2\,P_c R_c}{P_c+R_c}.
+\label{eq:f1}
+\end{equation}
+Se reportan también exactitud, precisión y exhaustividad macro, F1 ponderado, el coeficiente de correlación de Matthews (MCC) \cite{matthews1975}, $\kappa$ de Cohen \cite{cohen1960} y AUC ROC uno contra el resto \cite{fawcett2006}. La exactitud se complementa con las demás porque favorece a la clase mayoritaria; MCC y $\kappa$ resumen la tabla de confusión completa.
+
+\textbf{Inferencia.} Para comparar un modelo con la RL se usan tres herramientas. (a) Validación cruzada repetida de 5$\times$5 con la prueba $t$ corregida de Nadeau y Bengio \cite{nadeau2003}, cuyo estadístico (ec.~\ref{eq:nb}) para las diferencias $d_j$ de $J=25$ remuestreos es
+\begin{equation}
+t=\frac{\bar d}{\sqrt{\left(\tfrac1J+\tfrac{n_2}{n_1}\right)\hat\sigma_d^2}},\qquad \tfrac{n_2}{n_1}=\tfrac14,
+\label{eq:nb}
+\end{equation}
+con ajuste de Holm \cite{holm1979} por las comparaciones: si los $m$ $p$-valores ordenados son $p_{(1)}\le\dots\le p_{(m)}$, el ajustado es $\tilde p_{(i)}=\max_{j\le i}\min\{1,(m-j+1)p_{(j)}\}$. (b) En Test, intervalos de 95\,\% por bootstrap \cite{efron1979} con 2,000 remuestreos de los \Nte{} estudiantes y diferencias pareadas con las mismas remuestras. (c) La prueba exacta de McNemar \cite{mcnemar1947} sobre los aciertos de cada par de modelos.
+
+\textbf{Herramientas y reproducibilidad.} Python 3.14.8, scikit-learn 1.9.1, pandas 2.3.3, NumPy 2.5.4 e interpret 0.7.8 (EBM). Semilla 42 en la partición, los folds y los modelos. El código, los cuadernos ejecutados y las instrucciones para reproducir los resultados están en \expandafter\url\expandafter{\repoURL}.
+
+%=====================================================================================================================
+\section{Resultados y discusión}\label{sec:res}
+
+\subsection{Modelos base}
+La Tabla~\ref{tab:base} muestra los modelos con su configuración inicial, evaluados con validación cruzada. La mejor \Fm{} base es la de Gradient Boosting (\cvFGBB), seguida de Voting (hard) (\cvFVHB), EBM (\cvFEBMB) y Voting (soft) (\cvFVSB); todas superan a la RL por defecto (\cvFLRD) y, por mucho, a Dummy (\cvFDUM). Un solo árbol (\cvFDT) rinde bastante menos que sus versiones de ensamble: Bagging (\cvFBAGB), Pasting (\cvFPASB) y Random Forest (\cvFRFB), lo que confirma el efecto de reducir la varianza. Las SVM polinomial y RBF con parámetros por defecto quedan por debajo de la RL (\cvFSVPD{} y \cvFSVRD{}) y con brechas grandes entre entrenamiento y validación (\cvGapSVPD{} y \cvGapSVRD{}), señal de sobreajuste por una configuración no ajustada. Random Forest y Gradient Boosting memorizan Train (brechas de \cvGapRFB{} y \cvGapGBB{}) y aun así están entre los mejores en validación, de modo que una brecha grande no implica por sí sola peor generalización; la de AdaBoost (\cvGapADAB) es mínima solo porque su configuración base se detuvo en 10 estimadores.
+
+\input{tables/tab_base}
+
+\subsection{Modelos optimizados}
+La Tabla~\ref{tab:opt} compara cada modelo con su versión base, tanto en validación cruzada como en Test, y la Fig.~\ref{fig:antes} muestra el efecto en validación.
+
+\input{tables/tab_opt}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_antes_despues.pdf}
+\caption{\Fm{} en validación cruzada de 5 folds antes (círculo vacío) y después (círculo lleno) de optimizar. La línea punteada marca la RL optimizada.}
+\label{fig:antes}
+\end{figure}
+
+\textbf{Validación.} Los \nOptMejoraCV{} ensambles mejoran en validación, de \dcvMin{} a \dcvMax{} (promedio \dcvMedia{}). La mayor ganancia, la de AdaBoost (\dcvADA), se debe sobre todo a que su configuración inicial era débil, no a una ventaja intrínseca de la búsqueda. Las SVM ganan entre \dcvSVL{} y \dcvSVP{} porque sus valores por defecto eran pobres, y la RL gana \dcvLR{}. Tras optimizar, las \Fm{} de los modelos optimizados quedan en un rango estrecho (\cvFMinOpt{} a \cvFMaxOpt{}) comparable a la desviación entre folds (0.011 a 0.022).
+
+\textbf{Test.} En Test solo \nOptMejoraTest{} de los diez ensambles mejoran, con una ganancia media de \dteMedia{}: Bagging y Pasting suben \dteBAG{} y \dtePAS{} y Random Forest \dteRF{}, mientras que Gradient Boosting, HistGradientBoosting, Voting (hard) y Stacking quedan por debajo de su versión base (de $-$0.005 a $-$0.008, dentro del ruido de un intervalo de unos $\pm0.03$). La RL optimizada baja en Test (\dteLR{}) aunque sube en validación: su exactitud cae de \teAccLRD{} (por defecto) a \teAccLR{}, porque optimizar por \Fm{} con pesos balanceados cambió exactitud por exhaustividad de \cE{} (de \reELRD{} a \reELR). En síntesis, la ganancia de la optimización en validación (\dcvMedia{}) no se traslada de forma confiable a Test (\dteMedia{}).
+
+\input{tables/tab_test}
+
+La Tabla~\ref{tab:test} reúne la evaluación final. Salvo Dummy, las \Fm{} de los modelos optimizados quedan entre \testFMin{} y \testFMax{}; el mejor valor puntual es el de Random Forest (\teFRF, IC 95\,\% [\teLoRF, \teHiRF]), seguido de Bagging (\teFBAG) y Pasting (\teFPAS); los tres difieren en \rangoTresTest{} y sus intervalos se solapan casi por completo. La SVM lineal, un modelo sencillo, tiene la mayor exactitud (\teAccSVL), el mayor MCC (\teMccSVL) y un \Fm{} de \teFSVL{}, es decir, los ensambles no dominan en todas las métricas. Voting (soft) tiene el mayor AUC (\teAucVS).
+
+\textbf{Comparaciones pareadas en Test.} La Tabla~\ref{tab:pareadas} compara cada modelo con la RL con su regla de decisión (el modelo final del proyecto previo, \Fm{} de \teFLRR{}). Hay tres lecturas. (i) \emph{\Fm{}, el criterio principal:} solo Random Forest (\parRF) y Bagging (\parBAG) tienen intervalos que excluyen el cero, y apenas; Voting (soft) difiere en \parVSF{}, con el cero dentro del intervalo. (ii) \emph{Exactitud y McNemar:} cuatro modelos (SVM RBF, Voting (soft), Bagging y Random Forest) aciertan significativamente más estudiantes que la RL con regla incluso tras el ajuste de Holm ($p$ ajustado de \phoSVR{} a \phoRF{}); por ejemplo, Voting (soft) acierta donde la RL falla en 55 casos y la RL donde Voting (soft) falla en 28. Pero esa ventaja es compatible con un punto de operación distinto: la RL con regla se ajustó para detectar \cE{} y desertores y tiene una exactitud de \teAccLRR{}, mientras que la RL por defecto, sin ese ajuste, llega a \accLRD{} (más que cualquier modelo de la Tabla~\ref{tab:test}) con una exhaustividad de \cE{} de solo \reELRD. (iii) \emph{AUC,} que no depende del umbral: ninguna diferencia con la RL es detectable en los modelos con probabilidades (de \auMin{} a \auMax{}, todas con el cero dentro del intervalo); la de la SVM RBF es un artefacto de cómo se calculó (nota de la tabla). Además, McNemar condiciona a los modelos ya ajustados y no recoge la variabilidad por el entrenamiento \cite{dietterich1998}, y los intervalos bootstrap de la tabla no están corregidos por multiplicidad: los leemos como indicios, no como confirmaciones.
+
+\input{tables/tab_pareadas}
+
+\subsection{Comparación con el estado del arte}\label{sec:sota}
+La Tabla~\ref{tab:sota} resume los cinco estudios que usan el mismo conjunto de datos, con sus condiciones, y agrega el contexto de Martins et al.\ \cite{martins2023} y nuestros resultados.
+
+\input{tables/tab_sota}
+
+\textbf{Estudios con la misma partición.} Praptomo et al.\ \cite{praptomo2026} y Nashier et al.\ \cite{nashier2026} usan la misma partición 80/20 (\Ntr{}/\Nte{}) con semilla 42 y no remuestrean. Sus F1 macro en Test (0.683--0.718) y los nuestros (\testFMin{}--\testFMax{}) están en el mismo rango y sus diferencias son menores que la incertidumbre: el intervalo de 95\,\% del apilamiento de Nashier et al.\ (0.663--0.729) es del ancho de los nuestros (por ejemplo, [\teLoRF, \teHiRF] para Random Forest). Por eso no podemos ordenar los trabajos. Además, ellos seleccionan con una malla o una búsqueda propias, y los modelos no son los mismos (XGBoost, LightGBM y CatBoost frente a Random Forest, HistGradientBoosting y EBM aquí).
+
+\textbf{Estudios con cifras más altas.} Villar y de Andrade (F1 por clase, con SMOTE y partición no reportada), Putra et al.\ (exactitud de 0.806, con selección de variables por correlación antes de partir y una composición de Test distinta) y Wijiyanto et al.\ (exactitud de 0.844, con SMOTE y RFE) reportan cifras más altas que las nuestras (exactitud de \teAccRF{} y \Fm{} de \teFRF{} para Random Forest). Esas diferencias coinciden con diferencias de protocolo que suelen inflar la métrica: remuestreo o selección de variables que, si se hacen antes de partir, filtran información de Test \cite{kapoor2023}; particiones o composiciones de Test distintas; y métricas distintas (exactitud o F1 por clase frente a F1 macro). En el caso de Wijiyanto et al.\ el artículo no permite determinar con claridad si el preprocesamiento precedió a la partición ni cómo se promedió el F1; no podemos afirmar si esa es la causa. De Martins et al.\ no hay comparación posible: usan otra versión de los datos, otra partición (90/10 con repeticiones) y el F1 ponderado al final del primer semestre.
+
+\textbf{Conclusión de la comparación.} Con estas condiciones, \emph{no} afirmamos que nuestros modelos superen ni queden por debajo de los publicados: solo los de Praptomo et al.\ y Nashier et al.\ comparten partición y métrica con nosotros, y con ellos la evidencia es de equivalencia dentro del ruido.
+
+\subsection{Análisis gráfico}\label{sec:grafico}
+\textbf{Incertidumbre en Test.} La Fig.~\ref{fig:testic} dibuja el \Fm{} en Test con su intervalo bootstrap de 95\,\%. Los intervalos miden unos 0.06 de ancho y se solapan ampliamente: la diferencia entre el mejor y el peor de los trece modelos con intervalo es menor que lo que mide uno solo. Con \Nte{} estudiantes, el orden de la Tabla~\ref{tab:test} no es estable.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_test_ic.pdf}
+\caption{\Fm{} en Test (punto) con intervalo de 95\,\% por bootstrap (barra) para los modelos con intervalo; en naranja, la RL. La línea punteada marca la RL con regla.}
+\label{fig:testic}
+\end{figure}
+
+\textbf{Validación cruzada repetida.} La Fig.~\ref{fig:cvrep} muestra la diferencia de \Fm{} frente a la RL en 5$\times$5 remuestreos. Voting (soft) es el mejor: \rvDVS{} (IC 95\,\% corregido [\rvLoVS, \rvHiVS], gana en \rvGVS{} de 25 remuestreos, $p=\rvPVS$), seguido de Voting (hard) (\rvDVH, $p=\rvPVH$) y Stacking (\rvDSTK). Pero con \nCompCV{} comparaciones, tras el ajuste de Holm el $p$ de Voting (soft) es \rvHVS{}: ninguno de los modelos es significativamente mejor que la RL (dos lo serían sin corregir). Los \Fm{} medios de este esquema (\rcFLR{} para la RL y \rcFVS{} para Voting (soft)) difieren de los de 5 folds en a lo sumo \optMaxAbs{} en los doce modelos optimizados, de modo que el optimismo de la selección es pequeño.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_cv_repetida.pdf}
+\caption{Diferencia de \Fm{} frente a la RL en validación cruzada repetida 5$\times$5 (punto: media; barra: IC 95\,\% con la corrección de Nadeau y Bengio). A la derecha, el $p$ de Holm; ninguna diferencia es significativa tras el ajuste.}
+\label{fig:cvrep}
+\end{figure}
+
+\textbf{De validación a Test.} La Fig.~\ref{fig:gen} muestra para cada modelo optimizado el \Fm{} de entrenamiento, de validación y de Test. Entrenamiento va de \trainFMin{} a \trainFMax{}, y de validación a Test los modelos pierden en promedio \perdidaMedia{} (de \perdidaMin{} a \perdidaMax{}). El orden de validación no predice el de Test: entre los \nEnsGen{} ensambles, la correlación de Spearman entre ambos es de \rhoCVTest{} ($p=\pCVTest$), y la brecha de entrenamiento tampoco explica la pérdida ($\rho=\rhoGap$, $p=\pGap$). Dado que los \Fm{} de validación abarcan solo 0.027 puntos, esto es lo esperable si las diferencias entre modelos están en el ruido.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_generalizacion.pdf}
+\caption{\Fm{} de entrenamiento (cuadrado), validación cruzada (círculo) y Test (rombo) de los modelos optimizados.}
+\label{fig:gen}
+\end{figure}
+
+\textbf{Errores por clase.} La Fig.~\ref{fig:conf} y la Tabla~\ref{tab:clases} muestran dónde se equivocan los modelos. \cG{} es la clase más fácil (F1 de 0.82 a 0.86) y \cD{} queda en 0.75--0.77; el límite está en \cE{} (F1 de 0.45 a 0.53), que se confunde con las otras dos. Los modelos difieren sobre todo en cuánto sacrifican \cE: la SVM RBF tiene exactitud alta pero exhaustividad de \cE{} de \reESVR, y la RL y Random Forest llegan a \reELR{} y \reERF. La regla de decisión de la RL detecta más desertores (\detLRR{} frente a \detLR{} de 284) a costa de más falsas alarmas (\falsaLRR{} frente a \falsaLR), y no mejora el \Fm{} en Test (\teFLRR{} frente a \teFLR{}).
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{fig_confusion.pdf}
+\caption{Matrices de confusión en Test (conteos y porcentaje por fila) de la RL con regla, Voting (soft) y Random Forest.}
+\label{fig:conf}
+\end{figure*}
+
+\input{tables/tab_clases}
+
+\textbf{Variables más influyentes.} La Fig.~\ref{fig:imp} muestra la importancia por permutación (caída del \Fm{} en Test al permutar una variable) de Random Forest y de Voting (soft). Domina el número de UC aprobadas en el segundo semestre (\impRFASeg{} y \impVSASeg{}), seguido de la colegiatura al corriente (\impRFTF{} y \impVSTF) y de las UC aprobadas del primer semestre (\impRFAPri{} en Random Forest). Es coherente con el exploratorio (Fig.~\ref{fig:eda}) y con los trabajos previos sobre este conjunto \cite{praptomo2026}. Como se calculó en Test y después de seleccionar, la tomamos como descriptiva; la importancia por impureza (MDI) y la de permutación se parecen solo moderadamente ($\rho=\rhoMDI$).
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_importancia.pdf}
+\caption{Importancia por permutación en Test (caída del \Fm{}) de las ocho variables principales de Random Forest, y su valor para Voting (soft).}
+\label{fig:imp}
+\end{figure}
+
+\subsection{Discusión}\label{sec:disc}
+\textbf{¿Cuál es el mejor modelo?} Depende del criterio y no hay un ganador claro. Con \Fm{}, el criterio principal, Voting (soft) (\cvFVS) y Voting (hard) lideran en validación y Random Forest (\teFRF) en Test, pero las diferencias son pequeñas frente a la incertidumbre y, en validación cruzada repetida, ninguna sobrevive a la corrección por comparaciones múltiples. Con exactitud en Test, cuatro modelos superan a la RL con regla de forma significativa, pero no a la RL por defecto (\accLRD{}), y su AUC no se distingue del de la RL: lo que cambia entre modelos es sobre todo dónde se coloca el umbral entre \cE{} y las otras clases, no cuánto separan a los estudiantes. Si se prioriza simplicidad e interpretabilidad, la RL (\Fm{} de \teFLR{} en Test y \cvFLR{} en validación) queda a unos 0.02--0.03 de los mejores; si se prioriza detectar desertores, la RL con regla (\detLRR{} de 284) y las SVM (\detSVR{} para la RBF) son competitivas.
+
+\textbf{Base frente a optimizado.} Optimizar sube la validación (\dcvMedia{} en promedio) pero no de forma confiable el Test (\dteMedia{}); parte de la ganancia en validación es optimismo de la búsqueda (hasta \optMax{}) y parte se explica por configuraciones base débiles (AdaBoost, SVM). En estos datos, partir de una configuración base razonable captura la mayor parte del rendimiento y la búsqueda aporta poco por encima de ella.
+
+\textbf{Características de los datos.} La señal está concentrada en pocas variables del rendimiento académico, por lo que modelos de familias muy distintas alcanzan \Fm{} parecidos: el techo parece venir de la clase \cE, ambigua por construcción, y no de la capacidad del modelo. Un trabajo futuro con información más fina (asistencia, plataforma de aprendizaje) podría moverlo más que otro algoritmo.
+
+\textbf{Comparabilidad.} Las cifras de la literatura solo son comparables cuando comparten partición, métrica y ausencia de fuga (Sec.~\ref{sec:sota}); en esos casos los resultados son equivalentes dentro del ruido.
+
+\textbf{Limitaciones.} (i) Una sola partición con \Nte{} estudiantes: los intervalos miden unos $\pm0.03$ y no incorporan la variabilidad de la partición. (ii) Una sola institución y sin validación temporal: los indicadores macroeconómicos identifican cohortes y los modelos podrían aprender la cohorte. (iii) El predictor incluye el rendimiento de los dos primeros semestres: sirve como alerta tras el segundo semestre, no al ingreso. (iv) Los intervalos bootstrap pareados en Test no se corrigieron por multiplicidad (solo los McNemar, con Holm), McNemar no recoge la variabilidad del entrenamiento \cite{dietterich1998} y la importancia por permutación usó Test \emph{a posteriori}. (v) Con la validación cruzada de 5 folds para seleccionar y la repetida para inferir, la selección no es anidada; el optimismo observado es pequeño, pero no nulo. (vi) No se evaluó XGBoost, LightGBM ni CatBoost, usados por los trabajos citados; HistGradientBoosting es una variante cercana. (vii) Se trabajó sin remuestreo sintético, por lo que no se sabe cuánto cambiaría el resultado con SMOTE dentro de los folds.
+
+\textbf{Trabajo futuro.} Validación anidada o con repetición de particiones; separación temporal por cohorte; calibración de probabilidades y umbrales por clase según el costo de cada error; modelos de alerta más temprana (inscripción y primer semestre), como en \cite{martins2023}; y explicaciones con SHAP, como en \cite{praptomo2026}.
+
+%=====================================================================================================================
+\section{Conclusiones}\label{sec:conc}
+Con un protocolo sin fuga de información, una misma partición y los mismos folds, se compararon RL, SVM y diez familias de ensambles para clasificar a los estudiantes del conjunto UCI 697 en \cD, \cE{} y \cG. Los resultados responden al objetivo de la siguiente manera:
+\begin{enumerate}
+\item Los ensambles aportan mejoras \emph{modestas} sobre una RL bien configurada: en validación, \Fm{} de \cvFMinOpt{} a \cvFMaxOpt{} frente a \cvFLR{}; en Test, de \testFMin{} a \testFMax{} frente a \teFLR{}.
+\item No se puede afirmar un modelo superior en el criterio principal. Voting (soft) lidera en validación (\cvFVS) y Random Forest en Test (\teFRF), pero en validación cruzada repetida ninguna diferencia frente a la RL es significativa tras el ajuste de Holm, y el orden de validación no predice el de Test (Spearman \rhoCVTest). En Test, \nMcnHolm{} modelos aciertan significativamente más estudiantes que la RL con regla (McNemar con Holm), pero su AUC es indistinguible y la RL por defecto los supera en exactitud: es compatible con un punto de operación distinto, no con mejor discriminación.
+\item La optimización de hiperparámetros mejoró la validación (\dcvMedia{} en promedio) pero no de forma confiable el Test (\dteMedia{}).
+\item El límite común es la clase \cE{} (F1 de 0.45 a 0.53), no la elección del algoritmo.
+\item Las comparaciones con otros estudios son prudentes: solo dos comparten partición y métrica con este trabajo y, con ellos, la evidencia es de equivalencia dentro del ruido; las cifras más altas coinciden con protocolos distintos.
+\end{enumerate}
+La contribución principal es metodológica: un flujo reproducible que separa entrenamiento, selección y evaluación final, y que cuantifica la incertidumbre antes de declarar mejoras. El trabajo futuro más valioso es la validación temporal y la alerta más temprana.
+
+%=====================================================================================================================
+\balance
+\bibliographystyle{IEEEtran}
+\bibliography{refs}
+
+\end{document}

@@ -1,0 +1,26 @@
+\begin{table*}[t]
+\caption{Trabajos que usan el mismo conjunto de datos (tres clases). Las condiciones experimentales difieren, por lo que las cifras no son directamente comparables (Sec.~\ref{sec:sota}). Los resultados de cada estudio se listan en el orden de sus modelos.}
+\label{tab:sota}
+\centering\scriptsize
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.12}
+\begin{tabular}{@{}p{2.55cm}p{3.1cm}p{4.3cm}p{2.2cm}p{4.3cm}@{}}
+\toprule
+Autores (año) & Modelos & Datos y partición & Métrica & Resultado \\
+\midrule
+Praptomo et al.\ (2026) \cite{praptomo2026} & RL / RF / XGBoost (búsqueda aleatoria, 15 conf.) & UCI, 4,424; 80/20 estratificada (3,539/885), semilla 42; sin remuestreo & F1 macro & 0.683 / 0.698 / 0.701 (exactitud 0.768 / 0.772 / 0.761) \\
+\addlinespace[2pt]
+Nashier et al.\ (2026) \cite{nashier2026} & RL, RF, SVM RBF, XGBoost, LightGBM, CatBoost, apilado de los tres últimos & UCI, 4,424; 80/20 estratificada (3,539/885), semilla 42; malla con CV de 5 folds; sin remuestreo & F1 macro (Test) & 0.703 / 0.704 / 0.693 / 0.718 / 0.703 / 0.690 / 0.697 (IC 95\,\% del apilado: 0.663--0.729) \\
+\addlinespace[2pt]
+Villar y de Andrade (2024) \cite{villar2024} & SVM, RF, GB, XGBoost, CatBoost, LightGBM & UCI, 4,424; SMOTE; partición y folds no reportados & F1 por clase (media de las tres, calculada por nosotros) & 0.743 / 0.840 / 0.813 / 0.857 / 0.850 / 0.853 \\
+\addlinespace[2pt]
+Putra et al.\ (2025) \cite{putra2025} & RF / XGBoost & 4,424 (tras limpieza); 80/20 sin semilla ni estratificación reportadas; selección de 25 variables por correlación & Exactitud; sensibilidad & 0.806 / 0.790; 0.724 / 0.717 (F1 no reportado) \\
+\addlinespace[2pt]
+Wijiyanto et al.\ (2026) \cite{wijiyanto2026} & Apilado HLR-STACK (XGBoost + CatBoost + LightGBM $\rightarrow$ RL) & 4,424; 80/20 (tamaño y estratificación no reportados), CV de 7 folds, SMOTE en los folds, RFE & Exactitud; F1 (promedio no especificado); AUC & 0.844; 0.725; 0.915 \\
+\addlinespace[2pt]
+\emph{Contexto:} Martins et al.\ (2023) \cite{martins2023} & SVMSMOTE + RF / Balanced RF & Versión previa (4,433); 90/10, 10 repeticiones; fin del 1.\textsuperscript{er} semestre & F1 global (ponderado) & 0.745 / 0.744 \\
+\addlinespace[2pt]
+\textbf{Este trabajo} & RL con su regla / SVM lineal / Random Forest / Voting (soft) & UCI, 4,424; 80/20 estratificada (3,539/885), semilla 42; CV de 5 folds; Pipeline sin fuga & F1 macro (Test) & 0.683 / 0.708 / 0.716 / 0.703 (exactitud 0.725 / 0.768 / 0.759 / 0.756) \\
+\bottomrule
+\end{tabular}
+\end{table*}

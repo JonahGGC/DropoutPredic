@@ -1,0 +1,28 @@
+\begin{table*}[t]
+\caption{Modelos optimizados: hiperparámetros seleccionados, F1 macro en validación cruzada (CV, 5 folds sobre Train) y en Test, frente a los mismos modelos con su configuración inicial (``base''; para RL y SVM, los parámetros por defecto). $\Delta$ = optimizado $-$ base.}
+\label{tab:opt}
+\centering\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}p{2.6cm}p{6.5cm}cccccc@{}}
+\toprule
+ & & \multicolumn{3}{c}{F1 macro en CV} & \multicolumn{3}{c}{F1 macro en Test} \\
+\cmidrule(lr){3-5}\cmidrule(lr){6-8}
+Modelo & Hiperparámetros seleccionados & Base & Optimizado & $\Delta$ & Base & Optimizado & $\Delta$ \\
+\midrule
+RL & penalización L1 (\texttt{saga}), $C$=0.3, balanceada & 0.701 & 0.717$\pm$0.019 & +0.016 & 0.699 & 0.688 & $-$0.011 \\
+SVM lineal & $C$=0.01, balanceada & 0.681 & 0.709$\pm$0.019 & +0.028 & 0.670 & 0.708 & +0.038 \\
+SVM polinomial & grado 2, \texttt{coef0}=1, $C$=1, balanceada & 0.664 & 0.721$\pm$0.011 & +0.057 & 0.631 & 0.696 & +0.065 \\
+SVM RBF & $C$=100, $\gamma$=0.001 & 0.691 & 0.722$\pm$0.011 & +0.031 & 0.693 & 0.690 & $-$0.003 \\
+Random Forest & \texttt{min\_samples\_leaf}=2, \texttt{log2}, profundidad 16, entropy, balanceada & 0.718 & 0.726$\pm$0.022 & +0.009 & 0.698 & 0.716 & +0.018 \\
+Bagging & \texttt{max\_samples}=1, \texttt{max\_features}=0.3, árbol de profundidad 12 y \texttt{min\_samples\_leaf}=5, balanceado & 0.702 & 0.710$\pm$0.019 & +0.008 & 0.684 & 0.713 & +0.029 \\
+Pasting & \texttt{max\_samples}=0.9, \texttt{max\_features}=0.3, árbol de profundidad 12 y \texttt{min\_samples\_leaf}=5, balanceado & 0.700 & 0.719$\pm$0.020 & +0.018 & 0.680 & 0.710 & +0.029 \\
+AdaBoost & árboles de profundidad 6, $\eta$=0.1, 50 estimadores & 0.678 & 0.718$\pm$0.019 & +0.039 & 0.677 & 0.677 & +0.001 \\
+Gradient Boosting & $\eta$=0.05, 300 iteraciones, profundidad 4, \texttt{subsample}=0.7, \texttt{max\_features}=0.3, hoja mínima 5 & 0.730 & 0.732$\pm$0.019 & +0.002 & 0.692 & 0.687 & $-$0.005 \\
+HistGradientBoosting & $\eta$=0.1, 100 iteraciones, 15 hojas, hoja mínima 10, $\lambda_2$=1, balanceado & 0.716 & 0.734$\pm$0.019 & +0.018 & 0.683 & 0.675 & $-$0.008 \\
+EBM & 10 interacciones, $\eta$=0.03, 3 hojas, hoja mínima 4 & 0.728 & 0.731$\pm$0.014 & +0.002 & 0.695 & 0.697 & +0.002 \\
+Voting (hard) & pesos (RL, SVM, RF, GB, HGB) = (1, 1, 2, 2, 2) & 0.729 & 0.737$\pm$0.019 & +0.008 & 0.699 & 0.693 & $-$0.006 \\
+Voting (soft) & pesos (RL, SVM, RF, GB, HGB) = (1, 1, 2, 2, 2) & 0.726 & 0.737$\pm$0.022 & +0.012 & 0.700 & 0.703 & +0.003 \\
+Stacking & 5 modelos base (RL, SVM, RF, GB, HGB) $\rightarrow$ RL balanceada & 0.722 & 0.733$\pm$0.018 & +0.011 & 0.702 & 0.697 & $-$0.005 \\
+\bottomrule
+\end{tabular}
+\end{table*}

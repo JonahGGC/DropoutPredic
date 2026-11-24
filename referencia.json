@@ -1,0 +1,45 @@
+{
+  "descripcion": "Valores reportados en las prácticas anteriores (Proyecto F_1 y práctica de ensambles). El notebook 05 compara contra ellos.",
+  "particion": {"train": 3539, "test": 885},
+  "umbral_lr": 0.4,
+  "cv_f1": {
+    "Regresión Logística base (por defecto)": 0.7006,
+    "Regresión Logística (F_1)": 0.7170,
+    "SVM Lineal optimizado": 0.7086,
+    "SVM Polinomial optimizado": 0.7211,
+    "SVM RBF optimizado": 0.7217,
+    "Random Forest optimizado": 0.7262,
+    "Bagging optimizado": 0.7101,
+    "Pasting optimizado": 0.7189,
+    "AdaBoost optimizado": 0.7177,
+    "Gradient Boosting optimizado": 0.7316,
+    "HistGradientBoosting optimizado": 0.7340,
+    "EBM optimizado": 0.7309,
+    "Voting (hard) optimizado": 0.7373,
+    "Voting (soft) optimizado": 0.7375,
+    "Stacking optimizado": 0.7331
+  },
+  "test_f1": {
+    "Regresión Logística (F_1)": 0.6884,
+    "Regresión Logística (F_1) + P(Dropout) ≥ 0.40": 0.6832,
+    "SVM Lineal optimizado": 0.7078,
+    "SVM Polinomial optimizado": 0.6960,
+    "SVM RBF optimizado": 0.6899,
+    "Random Forest optimizado": 0.7161,
+    "Bagging optimizado": 0.7130,
+    "Pasting optimizado": 0.7096,
+    "Voting (soft) optimizado": 0.7028,
+    "Stacking optimizado": 0.6970,
+    "EBM optimizado": 0.6967,
+    "Voting (hard) optimizado": 0.6928,
+    "Gradient Boosting optimizado": 0.6872,
+    "AdaBoost optimizado": 0.6774,
+    "HistGradientBoosting optimizado": 0.6752
+  },
+  "test_accuracy": {
+    "Regresión Logística (F_1) + P(Dropout) ≥ 0.40": 0.7254,
+    "Voting (soft) optimizado": 0.7559,
+    "Random Forest optimizado": 0.7593,
+    "Bagging optimizado": 0.7616
+  }
+}

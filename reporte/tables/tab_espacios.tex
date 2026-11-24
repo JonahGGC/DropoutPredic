@@ -1,0 +1,21 @@
+\begin{table*}[t]
+\caption{Hiperparámetros evaluados en cada búsqueda (todas con los mismos 5 folds estratificados, puntaje F1 macro y reajuste con el mejor).}
+\label{tab:espacios}
+\centering\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}p{2.7cm}p{12.4cm}r@{}}
+\toprule
+Modelo & Hiperparámetros evaluados & Combinaciones \\
+\midrule
+Random Forest & \texttt{max\_features} \{sqrt, log2, 0.2, 0.35, 0.5\}; \texttt{min\_samples\_leaf} \{1, 2, 3, 5, 8, 12, 20\}; \texttt{max\_depth} \{None, 8, 12, 16\}; \texttt{class\_weight} \{None, balanced, balanced\_subsample\}; \texttt{criterion} \{gini, entropy\} & 40 (aleatoria) \\
+Bagging y Pasting & \texttt{max\_samples} \{0.3, 0.5, 0.7, 1.0\} (Pasting: hasta 0.9); \texttt{max\_features} \{0.3, 0.6, 1.0\}; \texttt{max\_depth} \{4, 6, 8, 12, None\}; \texttt{min\_samples\_leaf} \{1, 5, 10, 20\}; \texttt{class\_weight} \{None, balanced\} del árbol & 30 + 30 (aleatoria) \\
+AdaBoost & \texttt{n\_estimators} \{25, 50, 100, 200, 400\}; \texttt{learning\_rate} \{0.03, 0.1, 0.3, 1.0\}; \texttt{max\_depth} del árbol \{1, 2, 3, 4, 6, 8, 10\} & 140 (malla) \\
+Gradient Boosting & \texttt{learning\_rate} \{0.02, 0.05, 0.1, 0.2\}; \texttt{n\_estimators} \{100, 200, 300\}; \texttt{max\_depth} \{2, 3, 4, 5\}; \texttt{subsample} \{0.5, 0.7, 1.0\}; \texttt{min\_samples\_leaf} \{1, 5, 10, 20\}; \texttt{max\_features} \{None, sqrt, 0.3\} & 30 (aleatoria) \\
+HistGradientBoosting & \texttt{learning\_rate} \{0.02, 0.05, 0.1, 0.2\}; \texttt{max\_iter} \{100, 200, 400\}; \texttt{max\_leaf\_nodes} \{7, 15, 31\}; \texttt{min\_samples\_leaf} \{10, 20, 40, 80\}; \texttt{l2\_regularization} \{0, 1, 10\}; \texttt{max\_depth} \{None, 3, 5\}; \texttt{class\_weight} \{None, balanced\} & 40 (aleatoria) \\
+EBM & \texttt{interactions} \{0, 10, 20\}; \texttt{learning\_rate} \{0.01, 0.03\}; \texttt{max\_leaves} \{2, 3\}; \texttt{min\_samples\_leaf} \{4, 20\} & 24 (malla) \\
+Voting & pesos de (RL, SVM, RF, GB, HGB) $\in$ \{(1,1,1,1,1), (1,1,2,2,2), (2,1,1,1,1), (1,1,1,2,2), (1,0,1,1,1)\} & 5 (malla) \\
+Stacking & $C$ del meta-modelo (regresión logística balanceada) $\in$ \{0.01, 0.1, 1, 10\}, con validación cruzada interna de 5 folds & 4 \\
+RL y SVM & heredados de proyectos previos del curso (búsquedas sobre el mismo Train); aquí se usan fijos & --- \\
+\bottomrule
+\end{tabular}
+\end{table*}

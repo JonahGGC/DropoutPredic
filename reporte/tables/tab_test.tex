@@ -1,0 +1,31 @@
+\begin{table*}[t]
+\caption{Evaluación final en Test ($n=885$, evaluada una sola vez por modelo). Precisión, exhaustividad y F1 son promedios macro; entre corchetes, el intervalo de confianza de 95\,\% por bootstrap (2{,}000 remuestreos de los 885 estudiantes) del F1 macro, calculado para los modelos que se compararon formalmente. Negritas: mejor valor de la columna (sin contar a Dummy).}
+\label{tab:test}
+\centering\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lcccccccc@{}}
+\toprule
+Modelo & Acc. & Prec. & Exh. & F1 macro [IC 95\,\%] & F1 pond. & MCC & $\kappa$ & AUC \\
+\midrule
+Dummy (clase mayoritaria) & 0.499 & 0.166 & 0.333 & 0.222  & 0.333 & 0.000 & 0.000 & 0.500 \\
+Regresión logística (RL) & 0.727 & 0.697 & 0.700 & 0.688 [0.656, 0.719] & 0.740 & 0.576 & 0.570 & 0.884 \\
+RL + regla $P(\mathrm{Dropout})\geq0.40$ & 0.725 & 0.687 & 0.691 & 0.683 [0.651, 0.712] & 0.737 & 0.570 & 0.566 & 0.884 \\
+SVM lineal & \textbf{0.768} & 0.717 & 0.702 & 0.708  & 0.765 & \textbf{0.620} & \textbf{0.618} & 0.872\textsuperscript{a} \\
+SVM polinomial & 0.734 & 0.703 & 0.707 & 0.696  & 0.746 & 0.586 & 0.581 & 0.862\textsuperscript{a} \\
+SVM RBF & 0.763 & 0.705 & 0.682 & 0.690 [0.657, 0.722] & 0.754 & 0.607 & 0.604 & 0.853\textsuperscript{a} \\
+Voting (hard) & 0.739 & 0.697 & 0.700 & 0.693 [0.659, 0.723] & 0.749 & 0.589 & 0.586 & --- \\
+Voting (soft) & 0.756 & 0.705 & 0.704 & 0.703 [0.669, 0.734] & 0.759 & 0.606 & 0.605 & \textbf{0.890} \\
+Bagging & 0.762 & 0.716 & 0.715 & 0.713 [0.680, 0.743] & 0.765 & 0.616 & 0.615 & 0.882 \\
+Pasting & 0.755 & 0.711 & 0.714 & 0.710 [0.677, 0.740] & 0.761 & 0.608 & 0.606 & 0.884 \\
+Random Forest & 0.759 & \textbf{0.721} & \textbf{0.721} & \textbf{0.716} [0.683, 0.747] & \textbf{0.766} & 0.617 & 0.614 & 0.887 \\
+AdaBoost & 0.714 & 0.692 & 0.689 & 0.677 [0.645, 0.708] & 0.729 & 0.559 & 0.551 & 0.874 \\
+Gradient Boosting & 0.729 & 0.693 & 0.697 & 0.687 [0.655, 0.717] & 0.742 & 0.578 & 0.573 & 0.887 \\
+HistGradientBoosting & 0.727 & 0.678 & 0.679 & 0.675 [0.641, 0.705] & 0.734 & 0.564 & 0.562 & 0.875 \\
+Stacking & 0.738 & 0.703 & 0.707 & 0.697 [0.664, 0.727] & 0.750 & 0.592 & 0.587 & 0.888 \\
+EBM & 0.731 & 0.705 & 0.712 & 0.697 [0.665, 0.725] & 0.745 & 0.587 & 0.579 & 0.889 \\
+\bottomrule
+\end{tabular}
+
+\vspace{2pt}
+\raggedright\scriptsize\textsuperscript{a}\,AUC calculada con \texttt{decision\_function} de scikit-learn; con probabilidades (\texttt{libsvm}) la SVM RBF obtiene 0.884, igual que la RL. Voting (hard) no produce puntajes. Sin IC: modelos que no entraron al bootstrap.
+\end{table*}

@@ -1,0 +1,24 @@
+\begin{table*}[t]
+\caption{Diferencias pareadas en Test frente a la RL con su regla de decisión (modelo final del proyecto previo): diferencia observada e intervalo de 95\,\% por bootstrap pareado (2,000 remuestreos; sin corrección por multiplicidad). McNemar: estudiantes que acierta solo el modelo / solo la RL, $p$ exacto y $p$ ajustado por Holm sobre 11 comparaciones (negritas: $<0.05$).}
+\label{tab:pareadas}
+\centering\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lccccccc@{}}
+\toprule
+Modelo & $\Delta$F1 macro & $\Delta$ exactitud & $\Delta$MCC & $\Delta$AUC & Solo él / solo RL & $p$ McNemar & $p$ Holm \\
+\midrule
+Random Forest & +0.033 [+0.006, +0.060] & +0.034 [+0.011, +0.058] & +0.046 [+0.010, +0.082] & +0.003 [$-$0.007, +0.015] & 70 / 40 & 0.005 & \textbf{0.044} \\
+Bagging & +0.030 [+0.001, +0.059] & +0.036 [+0.011, +0.061] & +0.046 [+0.008, +0.085] & $-$0.002 [$-$0.014, +0.010] & 77 / 45 & 0.005 & \textbf{0.043} \\
+Pasting & +0.026 [$-$0.002, +0.054] & +0.029 [+0.006, +0.053] & +0.038 [+0.001, +0.074] & +0.000 [$-$0.011, +0.012] & 72 / 46 & 0.021 & 0.147 \\
+Voting (soft) & +0.020 [$-$0.005, +0.043] & +0.030 [+0.010, +0.051] & +0.035 [+0.004, +0.066] & +0.006 [$-$0.002, +0.014] & 55 / 28 & 0.004 & \textbf{0.040} \\
+Stacking & +0.014 [$-$0.010, +0.036] & +0.012 [$-$0.008, +0.032] & +0.021 [$-$0.011, +0.051] & +0.004 [$-$0.003, +0.012] & 46 / 35 & 0.266 & 1.000 \\
+EBM & +0.013 [$-$0.011, +0.036] & +0.006 [$-$0.016, +0.026] & +0.017 [$-$0.017, +0.047] & +0.005 [$-$0.004, +0.015] & 50 / 45 & 0.682 & 1.000 \\
+Voting (hard) & +0.010 [$-$0.015, +0.032] & +0.014 [$-$0.008, +0.035] & +0.018 [$-$0.015, +0.050] & --- & 52 / 40 & 0.251 & 1.000 \\
+SVM RBF & +0.007 [$-$0.020, +0.035] & +0.037 [+0.014, +0.061] & +0.037 [+0.001, +0.071] & $-$0.031 [$-$0.044, $-$0.018]\textsuperscript{a} & 72 / 39 & 0.002 & \textbf{0.025} \\
+Gradient Boosting & +0.004 [$-$0.022, +0.029] & +0.003 [$-$0.020, +0.025] & +0.008 [$-$0.027, +0.042] & +0.003 [$-$0.007, +0.012] & 55 / 52 & 0.847 & 1.000 \\
+AdaBoost & $-$0.006 [$-$0.034, +0.022] & $-$0.011 [$-$0.036, +0.012] & $-$0.011 [$-$0.050, +0.026] & $-$0.010 [$-$0.025, +0.005] & 59 / 69 & 0.426 & 1.000 \\
+HistGradientBoosting & $-$0.008 [$-$0.037, +0.018] & +0.001 [$-$0.024, +0.024] & $-$0.006 [$-$0.045, +0.029] & $-$0.009 [$-$0.020, +0.002] & 59 / 58 & 1.000 & 1.000 \\
+\bottomrule
+\multicolumn{8}{@{}l}{\textsuperscript{a}\,AUC de la SVM calculada con \texttt{decision\_function}; con probabilidades no difiere de la RL (0.884 en ambas). El Voting (hard) no produce puntajes.}
+\end{tabular}
+\end{table*}

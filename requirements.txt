@@ -1,0 +1,12 @@
+numpy
+pandas
+scipy
+scikit-learn>=1.9
+matplotlib
+seaborn
+joblib
+interpret>=0.7
+jupyter
+ipykernel
+nbformat
+nbclient

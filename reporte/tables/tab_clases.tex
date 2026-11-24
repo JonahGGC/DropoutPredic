@@ -1,0 +1,18 @@
+\begin{table}[t]
+\caption{Desempeño por clase en Test. D = Dropout, E = Enrolled, G = Graduate. F1 por clase, exhaustividad (Exh.) de E y desertores detectados (Det., de 284).}
+\label{tab:clases}
+\centering\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{2.55cm}ccccc@{}}
+\toprule
+Modelo & F1 D & F1 E & F1 G & Exh. E & Det. \\
+\midrule
+Regresión logística (RL) & 0.749 & 0.493 & 0.824 & 0.623 & 195 \\
+RL + regla $P(\mathrm{Dropout})\geq0.40$ & 0.756 & 0.473 & 0.821 & 0.572 & 203 \\
+SVM RBF & 0.761 & 0.451 & 0.858 & 0.403 & 208 \\
+Random Forest & 0.769 & 0.532 & 0.848 & 0.610 & 201 \\
+Voting (soft) & 0.755 & 0.499 & 0.855 & 0.535 & 203 \\
+EBM & 0.747 & 0.517 & 0.826 & 0.667 & 195 \\
+\bottomrule
+\end{tabular}
+\end{table}

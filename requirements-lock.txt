@@ -1,0 +1,6 @@
+# Versiones de la corrida del reporte (las que imprime el notebook 01). Solo las registradas en esa salida.
+scikit-learn==1.9.1
+pandas==2.3.3
+numpy==2.5.4
+interpret==0.7.8
+# Python 3.14.8
